@@ -109,17 +109,18 @@ public class SOCMI {
 
         for (Edge edge : pEdges) {
             Pathgraph edgePg = new Pathgraph(edge);
+            pg_ext.merge(edgePg);
 
-            List<Pathgraph> inCandidate = candidate.stream()
-                    .filter(pg -> pg.samePattern(edgePg))
-                    .collect(Collectors.toList());
+            // List<Pathgraph> inCandidate = candidate.stream()
+            // .filter(pg -> pg.samePattern(edgePg))
+            // .collect(Collectors.toList());
 
-            if (inCandidate.isEmpty() == false) {
-                System.out.println("Contains edgePg in candidate");
-                // inCandidate.get(0).merge(edgePg);
-                pg_ext.merge(edgePg);
-                continue;
-            }
+            // if (inCandidate.isEmpty() == false) {
+            // System.out.println("Contains edgePg in candidate");
+            // inCandidate.get(0).merge(edgePg);
+            // pg_ext.merge(edgePg);
+            // continue;
+            // }
         }
 
         return pg_ext;
