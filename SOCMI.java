@@ -75,8 +75,7 @@ public class SOCMI {
                             .collect(Collectors.toList());
                     if (extEdges.isEmpty() == false || new Pathgraph(ext).get_pCount() >= minSupport) {
                         System.out.println("distance threshold reached");
-                        result.add(ext);
-                        S.pop();
+                        result.add(S.pop());
                         continue;
                     }
 
@@ -85,7 +84,7 @@ public class SOCMI {
 
                     Pathgraph p_ext_pathgraph = PathGraphExtension(candidate, p_ext, minSupport, maxDistance);
 
-                    System.out.println(p_ext_pathgraph.get_pCount());
+                    // System.out.println(p_ext_pathgraph.get_pCount());
                     if (p_ext_pathgraph.get_pCount() >= minSupport) {
                         S.push(p_ext);
                     }
@@ -403,19 +402,20 @@ class Pathgraph {
         this.getGraph().getEdges().addAll(pathgraph.getGraph().getEdges());
 
         if (this.pCount.keySet().equals(pathgraph.pCount.keySet()) == false) {
-            this.pCount.putAll(pathgraph.pCount);
 
-            Graph temp = new Graph(this.graph);
-            this.graph = temp;
+            for (Integer key : pathgraph.pCount.keySet()) {
+                this.pCount.put(key, this.pCount.getOrDefault(key, 0) + pathgraph.pCount.get(key));
+            }
 
         } else {
+
             for (Integer key : this.pCount.keySet()) {
                 this.pCount.put(key, this.pCount.get(key) + pathgraph.pCount.get(key));
             }
-
-            Graph temp = new Graph(this.graph);
-            this.graph = temp;
         }
+
+        Graph temp = new Graph(this.graph);
+        this.graph = temp;
 
         for (Edge edge : pathgraph.getGraph().getEdges()) {
             if (edge.getSource().getLabel() == edge.getDestination().getLabel()) {
