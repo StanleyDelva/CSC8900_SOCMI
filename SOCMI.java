@@ -73,7 +73,7 @@ public class SOCMI {
                     Graph ext = S.peek();
                     List<Edge> extEdges = ext.getEdges().stream().filter(e -> e.getWeight() >= maxDistance)
                             .collect(Collectors.toList());
-                    if (extEdges.isEmpty() == false) {
+                    if (extEdges.isEmpty() == false || new Pathgraph(ext).get_pCount() >= minSupport) {
                         System.out.println("distance threshold reached");
                         result.add(ext);
                         S.pop();
@@ -347,6 +347,14 @@ class Pathgraph {
     // Implementation of Pathgraph, as interpreted from paper
     private Graph graph;
     private HashMap<Integer, Integer> pCount;
+
+    public Pathgraph(Graph graph) {
+        this.graph = graph;
+        this.pCount = new HashMap<>();
+        for (Node node : graph.getNodes()) {
+            this.pCount.put(node.getLabel(), pCount.getOrDefault(node.getLabel(), 0) + 1);
+        }
+    }
 
     public Pathgraph(Edge edge) {
         this.graph = new Graph();
