@@ -3,75 +3,12 @@
 
 import java.util.*;
 import java.io.*;
+import java.lang.reflect.Array;
+import java.nio.file.Path;
 import java.util.stream.Collectors;
 import java.text.ParseException;
 
 public class SOCMI {
-
-    private Pathgraph pathgraph;
-
-    public SOCMI(Graph graph) {
-        this.pathgraph = new Pathgraph(graph);
-    }
-
-    public List<Pathgraph> findFrequentPathgraphs(int minSupport) {
-        List<Pathgraph> frequentPathgraphs = new ArrayList<>();
-        Map<Pathgraph, Integer> pathgraphCounts = new HashMap<>();
-
-        // Find all Pathgraphs with at least minSupport support
-        for (Node node : pathgraph.getGraph().keySet()) {
-            findFrequentPathgraphsDFS(node, new Pathgraph(), pathgraphCounts, minSupport);
-        }
-
-        // Filter for frequent Pathgraphs based on support threshold
-        for (Map.Entry<Pathgraph, Integer> entry : pathgraphCounts.entrySet()) {
-            Pathgraph pathgraph = entry.getKey();
-            int support = entry.getValue();
-
-            if (support >= minSupport) {
-                frequentPathgraphs.add(pathgraph);
-            }
-        }
-
-        return frequentPathgraphs;
-    }
-
-    private void findFrequentPathgraphsDFS(Node node, Pathgraph currentPathgraph,
-            Map<Pathgraph, Integer> pathgraphCounts, int minSupport) {
-        if (currentPathgraph.getGraph().isEmpty()) {
-            // Check support for single-node Pathgraph
-            if (!pathgraphCounts.containsKey(currentPathgraph)) {
-                pathgraphCounts.put(currentPathgraph, 0);
-            }
-
-            pathgraphCounts.put(currentPathgraph, pathgraphCounts.get(currentPathgraph) + 1);
-            return;
-        }
-
-        // Expand Pathgraph by adding edges from current node
-        for (Edge edge : pathgraph.getOriginalGraph().getNodes().get(node.getId()).getEdges()) {
-            Node destination = edge.getDestination();
-
-            if (!currentPathgraph.getGraph().containsKey(node)
-                    || currentPathgraph.getGraph().get(node).get(node).stream().filter(
-                            path -> path.getEdges().stream()
-                                    .anyMatch(listedEdge -> listedEdge.getDestination().equals(destination)))
-                            .collect(Collectors.toList()).isEmpty()) {
-                Pathgraph newPathgraph = new Pathgraph(currentPathgraph.getGraph());
-                newPathgraph.addEdge(node, destination, new ArrayList<>());
-
-                // Check support for expanded Pathgraph
-                if (!pathgraphCounts.containsKey(newPathgraph)) {
-                    pathgraphCounts.put(newPathgraph, 0);
-                }
-
-                pathgraphCounts.put(newPathgraph, pathgraphCounts.get(newPathgraph) + 1);
-
-                // Recursively expand Pathgraph
-                findFrequentPathgraphsDFS(destination, newPathgraph, pathgraphCounts, minSupport);
-            }
-        }
-    }
 
     public static void main(String args[]) {
         Graph graph = new Graph();
@@ -82,16 +19,109 @@ public class SOCMI {
             System.exit(1);
         }
 
-        SOCMI socmi = new SOCMI(graph);
-        List<Pathgraph> frequentPathgraphs = socmi.findFrequentPathgraphs(160);
+        int minSupport = 50;
+        int maxDistance = 350;
 
-        System.out.println("Frequent Pathgraphs:");
-        for (Pathgraph pathgraph : frequentPathgraphs) {
-            System.out.println("Support: " + pathgraph.getGraph().get(pathgraph.getNodes().get(0))
-                    .get(pathgraph.getNodes().get(0)).size());
-            pathgraph.printGraph();
+        long startTime = System.nanoTime();
+        List<Graph> frequentPatterns = SOCMI_fpm(graph, minSupport, maxDistance);
+        long endTime = System.nanoTime();
+        long duration = (endTime - startTime) / 1000000; // time in milliseconds
+
+        System.out.println("Frequent Pathgraphs:  Took " + duration + " milliseconds to find " + frequentPatterns.size()
+                + " frequent pathgraphs with min support " + minSupport + " and max distance " + maxDistance + ".");
+        for (Graph pattern : frequentPatterns) {
+            System.out.println(pattern.printGraph());
         }
     }
+
+    // Algorithm 1
+    public static List<Graph> SOCMI_fpm(Graph graph, int minSupport, int maxDistance) {
+        List<Graph> result = new ArrayList<>();
+        List<Pathgraph> candidate = new ArrayList<>();
+
+        List<Edge> fEdges = new ArrayList<>();
+        for (Edge edge : graph.getEdges()) {
+            if (edge.getSource().getLabel() != edge.getDestination().getLabel() && edge.getWeight() <= maxDistance) {
+                fEdges.add(edge);
+            }
+        }
+
+        for (Edge edge : fEdges) {
+            Pathgraph pg_E = new Pathgraph(edge);
+
+            List<Pathgraph> inCandidate = candidate.stream().filter(pg -> pg.samePattern(pg_E))
+                    .collect(Collectors.toList());
+
+            if (inCandidate.isEmpty() == false) {
+                System.out.println("Contains edge in candidate");
+                for (Pathgraph pg : inCandidate) {
+                    pg.merge(pg_E);
+                }
+            } else {
+                candidate.add(new Pathgraph(edge));
+            }
+
+        }
+
+        while (fEdges.isEmpty() == false) {
+            for (Edge edge : fEdges) {
+                Graph p = new Graph(edge);
+                Stack<Graph> S = new Stack<>();
+                S.push(p);
+
+                while (S.empty() == false) {
+                    Graph ext = S.peek();
+                    if (ext.getEdges().get(0).getWeight() == maxDistance) {
+                        result.add(ext);
+                        S.pop();
+                        continue;
+                    }
+
+                    Graph p_ext = new Graph(p);
+                    p_ext.extendGraph(ext);
+
+                    Pathgraph p_ext_pathgraph = PathGraphExtension(candidate, p_ext, minSupport, maxDistance);
+
+                    System.out.println(p_ext_pathgraph.get_pCount());
+                    if (p_ext_pathgraph.get_pCount() >= minSupport) {
+                        S.push(p_ext);
+                    }
+                }
+
+                fEdges.remove(edge);
+            }
+        }
+
+        return result;
+    }
+
+    // Algorithm 2
+    private static Pathgraph PathGraphExtension(List<Pathgraph> candidate, Graph p_ext, int minSupport,
+            int maxDistance) {
+
+        Pathgraph pg_ext = new Pathgraph();
+
+        List<Edge> pEdges = new ArrayList<>();
+        pEdges.addAll(p_ext.getEdges());
+
+        for (Edge edge : pEdges) {
+            Pathgraph edgePg = new Pathgraph(edge);
+
+            List<Pathgraph> inCandidate = candidate.stream()
+                    .filter(pg -> pg.samePattern(edgePg))
+                    .collect(Collectors.toList());
+
+            if (inCandidate.isEmpty() == false) {
+                System.out.println("Contains edgePg in candidate");
+                inCandidate.get(0).merge(edgePg);
+                pg_ext.merge(inCandidate.get(0));
+            }
+        }
+
+        return pg_ext;
+
+    }
+
 }
 
 class Node {
@@ -159,12 +189,29 @@ class Edge {
 class Graph {
     private Map<Integer, Node> nodes;
     private ArrayList<Edge> edges;
-    private HashMap<Integer, HashMap<Integer, Node>> nodesByLabel;
+    private HashMap<Integer, ArrayList<Integer>> adjList;
+
     private int nodeCount = 0;
 
     public Graph() {
         this.nodes = new HashMap<>();
         this.edges = new ArrayList<>();
+        this.adjList = new HashMap<>();
+    }
+
+    public Graph(Edge edge) {
+        this.nodes = new HashMap<>();
+        this.edges = new ArrayList<>();
+        this.adjList = new HashMap<>();
+        this.addEdge(edge.getSource(), edge.getDestination(), edge.getWeight());
+    }
+
+    public Graph(Graph graph) {
+        this.nodes = new HashMap<>();
+        this.edges = new ArrayList<>();
+        this.nodes = graph.nodes;
+        this.edges = graph.edges;
+        this.adjList = graph.adjList;
     }
 
     public void addNode(Integer id) {
@@ -175,6 +222,7 @@ class Graph {
         if (!nodes.containsKey(id)) {
             Node node = new Node(id, label);
             nodes.put(id, node);
+            nodeCount++;
         }
     }
 
@@ -188,6 +236,25 @@ class Graph {
         edges.add(edge);
         source.addEdge(edge);
         destination.addEdge(edge);
+
+        if (this.adjList.get(source.getId()) == null) {
+            this.adjList.put(source.getId(), new ArrayList<Integer>());
+            this.adjList.get(source.getId()).add(destination.getId());
+        } else {
+            this.adjList.get(source.getId()).add(destination.getId());
+        }
+    }
+
+    public void addEdge(Edge edge) {
+        edges.add(edge);
+    }
+
+    public void extendGraph(Graph graph) {
+        for (Node node : graph.getNodes()) {
+            this.addNode(node.getId(), node.getLabel());
+        }
+
+        this.edges.addAll(graph.getEdges());
     }
 
     public void readFromFile(String filename) throws IOException {
@@ -239,31 +306,12 @@ class Graph {
         }
     }
 
-    public void readNodeLabelsFromTxtFile(String filename) throws IOException {
-        try (BufferedReader reader = new BufferedReader(new FileReader(filename))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                String[] parts = line.split(",");
-                int id = Integer.parseInt(parts[0].trim());
-                int label = Integer.parseInt(parts[1].trim());
-
-                nodes.get(id).setLabel(label);
-            }
-        }
+    public HashMap<Integer, ArrayList<Integer>> getAdjList() {
+        return adjList;
     }
 
-    public int[][] getAdjacencyMatrix() {
-        int numNodes = nodes.size();
-        int[][] adjacencyMatrix = new int[numNodes][numNodes];
-
-        for (Edge edge : edges) {
-            int sourceId = edge.getSource().getId();
-            int destinationId = edge.getDestination().getId();
-
-            adjacencyMatrix[sourceId][destinationId] = 1;
-        }
-
-        return adjacencyMatrix;
+    public boolean isEmpty() {
+        return nodes.isEmpty();
     }
 
     public List<Node> getNodes() {
@@ -278,157 +326,106 @@ class Graph {
         return edges.stream().filter(edge -> edge.getSource().equals(node)).collect(Collectors.toList());
     }
 
-}
-
-class Path {
-
-    private List<Node> nodes;
-    private int support;
-    private int length;
-    private List<Edge> edges;
-
-    public Path() {
-        this.nodes = new ArrayList<>();
-        this.support = 0;
-        this.length = 0;
-        this.edges = new ArrayList<>();
-    }
-
-    public Path(Path other) {
-        this.nodes = new ArrayList<>(other.nodes);
-        this.support = other.support;
-        this.length = other.length;
-        this.edges = new ArrayList<>(other.edges);
-    }
-
-    public void addNode(Node node) {
-        nodes.add(node);
-    }
-
-    public void addEdge(Edge edge) {
-        edges.add(edge);
-    }
-
-    public List<Node> getNodes() {
-        return nodes;
-    }
-
-    public int getSupport() {
-        return support;
-    }
-
-    public int getLength() {
-        return length;
-    }
-
-    public List<Edge> getEdges() {
-        return edges;
-    }
-
-    public String printPath() {
-        String path = "";
-        for (Node node : nodes) {
-            path += node.getId() + " -> ";
+    public String printGraph() {
+        String text = "";
+        for (Node node : nodes.values()) {
+            text += node.getId() + " " + node.getLabel() + "\n";
         }
-        return path;
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (this == obj) {
-            return true;
-
+        for (Edge edge : edges) {
+            text += edge.getSource().getId() + " " + edge.getDestination().getId() + " " + edge.getWeight() + "\n";
         }
-
-        if (obj == null || getClass() != obj.getClass()) {
-            return false;
-        }
-
-        Path other = (Path) obj;
-        return nodes.equals(other.nodes);
+        return text;
     }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(nodes);
-    }
-
-    public boolean containsNode(Node node) {
-        return nodes.contains(node);
-    }
-
 }
 
 class Pathgraph {
+    // Implementation of Pathgraph, as interpreted from paper
+    private Graph graph;
+    private HashMap<Integer, Integer> pCount;
 
-    private Map<Node, Map<Node, List<Path>>> graph;
-    private Graph originalGraph;
+    public Pathgraph(Edge edge) {
+        this.graph = new Graph();
+        this.graph.addEdge(edge);
 
-    public Pathgraph(Graph originalGraph) {
-        this.graph = new HashMap<>();
-        this.originalGraph = originalGraph;
+        this.pCount = new HashMap<>();
+        this.pCount.put(edge.getSource().getLabel(), 1);
+        this.pCount.put(edge.getDestination().getLabel(), 1);
 
-        for (Node node : originalGraph.getNodes()) {
-            Map<Node, List<Path>> neighbors = new HashMap<>();
-
-            for (Edge edge : originalGraph.getEdges(node)) {
-                Node destination = edge.getDestination();
-                List<Path> paths = new ArrayList<>();
-
-                Path path = new Path();
-                path.addNode(node);
-                path.addNode(destination);
-                paths.add(path);
-
-                findAllPathsDFS(originalGraph, node, destination, path, paths);
-                neighbors.put(destination, paths);
-            }
-
-            this.graph.put(node, neighbors);
-        }
-    }
-
-    public Pathgraph(Map<Node, Map<Node, List<Path>>> graph) {
-        this.graph = graph;
     }
 
     public Pathgraph() {
-        this.graph = new HashMap<>();
+        this.graph = new Graph();
+        this.pCount = new HashMap<>();
     }
 
-    private void findAllPathsDFS(Graph graph, Node source, Node destination, Path currentPath, List<Path> paths) {
-        if (source.equals(destination)) {
-            paths.add(new Path(currentPath));
-            return;
+    public void addEdge(Node source, Node destination) {
+        this.graph.addEdge(source, destination, 1.0);
+        if (this.graph.getNodes().contains(source) == false) {
+            this.graph.addNode(source.getId(), source.getLabel());
+            this.pCount.put(source.getLabel(), 1);
+        }
+        if (this.graph.getNodes().contains(destination) == false) {
+            this.graph.addNode(destination.getId(), destination.getLabel());
+            this.pCount.put(destination.getLabel(), 1);
         }
 
-        for (Edge edge : graph.getEdges(source)) {
-            Node nextNode = edge.getDestination();
+    }
 
-            if (!currentPath.containsNode(nextNode)) {
-                Path newPath = new Path(currentPath);
-                newPath.addNode(nextNode);
+    public void merge(Pathgraph pathgraph) {
 
-                findAllPathsDFS(graph, nextNode, destination, newPath, paths);
+        this.getGraph().getEdges().addAll(pathgraph.getGraph().getEdges());
+
+        if (this.pCount.keySet().equals(pathgraph.pCount.keySet()) == false) {
+            this.pCount.putAll(pathgraph.pCount);
+
+            Graph temp = new Graph(this.graph);
+            this.graph = temp;
+
+        } else {
+            for (Integer key : this.pCount.keySet()) {
+                this.pCount.put(key, this.pCount.get(key) + pathgraph.pCount.get(key));
+            }
+
+            Graph temp = new Graph(this.graph);
+            this.graph = temp;
+        }
+
+    }
+
+    public boolean contains(Pathgraph pathgraph) {
+        for (Edge edge : pathgraph.getGraph().getEdges()) {
+            if (this.graph.getEdges().contains(edge) == false) {
+                return false;
+            }
+
+            if (this.pCount.keySet().equals(pathgraph.pCount.keySet()) == false) {
+                return false;
             }
         }
+        return true;
     }
 
-    public List<Path> getPaths(Node source, Node destination) {
-        if (!this.graph.containsKey(source) || !this.graph.get(source).containsKey(destination)) {
-            return new ArrayList<>();
+    public boolean contains(Edge edge) {
+        return this.pCount.containsKey(edge.getSource().getLabel())
+                && this.pCount.containsKey(edge.getDestination().getLabel());
+    }
+
+    public boolean samePattern(Pathgraph pathgraph) {
+        return this.pCount.keySet().equals(pathgraph.pCount.keySet());
+    }
+
+    public boolean equals(Pathgraph pathgraph) {
+        return this.pCount.keySet().equals(pathgraph.pCount.keySet());
+    }
+
+    public int get_pCount() {
+        if (this.pCount.isEmpty()) {
+            return 0;
         }
-
-        return this.graph.get(source).get(destination);
+        return Collections.min(this.pCount.values());
     }
 
-    public boolean hasPath(Node source, Node destination) {
-
-        return this.graph.containsKey(source) && this.graph.get(source).containsKey(destination)
-                && !this.graph.get(source).get(destination).isEmpty();
-    }
-
-    public Map<Node, Map<Node, List<Path>>> getGraph() {
+    public Graph getGraph() {
         return graph;
     }
 
@@ -437,57 +434,11 @@ class Pathgraph {
     }
 
     public List<Node> getNodes() {
-        return new ArrayList<>(graph.keySet());
-    }
-
-    public void addEdge(Node source, Node destination, List<Path> paths) {
-        if (!this.graph.containsKey(source)) {
-            this.graph.put(source, new HashMap<>());
-        }
-
-        this.graph.get(source).put(destination, paths);
+        return graph.getNodes();
     }
 
     public Graph getOriginalGraph() {
-        return originalGraph;
-    }
-
-    public void printGraph() {
-        String filename = "output.txt";
-        System.out.println("Writing to file '" + filename + "'");
-
-        try {
-            FileWriter fileWriter = new FileWriter(filename);
-            BufferedWriter bufferedWriter = new BufferedWriter(fileWriter);
-
-            for (Map.Entry<Node, Map<Node, List<Path>>> entry : this.graph.entrySet()) {
-                String line = "";
-                Node source = entry.getKey();
-                Map<Node, List<Path>> neighbors = entry.getValue();
-
-                System.out.println("Node: " + source);
-                line = "Node: " + source + "\n";
-                for (Map.Entry<Node, List<Path>> neighborEntry : neighbors.entrySet()) {
-                    Node destination = neighborEntry.getKey();
-                    List<Path> paths = neighborEntry.getValue();
-
-                    System.out.println("  Neighbor: " + destination);
-                    line += "  Neighbor: " + destination + "\n";
-                    for (Path path : paths) {
-                        System.out.println("    Path: " + path.printPath());
-                        line += "    Path: " + path.printPath() + "\n";
-                    }
-
-                    bufferedWriter.write(line);
-                    bufferedWriter.newLine();
-                }
-
-            }
-            bufferedWriter.close();
-        } catch (IOException e) {
-            System.out.println("Error writing to file '" + filename + "'");
-            e.printStackTrace();
-        }
+        return this.graph;
     }
 
 }
