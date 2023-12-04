@@ -244,14 +244,18 @@ class Graph {
 
         if (this.adjList.get(source.getId()) == null) {
             this.adjList.put(source.getId(), new ArrayList<Integer>());
-            this.adjList.get(source.getId()).add(destination.getId());
+            this.adjList.get(source.getId()).add(destination.getLabel());
         } else {
-            this.adjList.get(source.getId()).add(destination.getId());
+            this.adjList.get(source.getId()).add(destination.getLabel());
         }
     }
 
     public void addEdge(Edge edge) {
         edges.add(edge);
+    }
+
+    public void removeEdge(Edge edge) {
+        edges.remove(edge);
     }
 
     public void extendGraph(Graph graph) {
@@ -360,10 +364,14 @@ class Pathgraph {
         this.graph = new Graph();
         this.graph.addEdge(edge);
 
-        this.pCount = new HashMap<>();
-        this.pCount.put(edge.getSource().getLabel(), 1);
-        this.pCount.put(edge.getDestination().getLabel(), 1);
-
+        if (edge.getSource().getLabel() != edge.getDestination().getLabel()) {
+            this.pCount = new HashMap<>();
+            this.pCount.put(edge.getSource().getLabel(), 1);
+            this.pCount.put(edge.getDestination().getLabel(), 1);
+        } else {
+            this.pCount = new HashMap<>();
+            this.pCount.put(edge.getSource().getLabel(), 2);
+        }
     }
 
     public Pathgraph() {
@@ -384,6 +392,12 @@ class Pathgraph {
 
     }
 
+    public void removeEdge(Edge edge) {
+        this.graph.getEdges().remove(edge);
+        this.pCount.remove(edge.getSource().getLabel());
+        this.pCount.remove(edge.getDestination().getLabel());
+    }
+
     public void merge(Pathgraph pathgraph) {
 
         this.getGraph().getEdges().addAll(pathgraph.getGraph().getEdges());
@@ -401,6 +415,16 @@ class Pathgraph {
 
             Graph temp = new Graph(this.graph);
             this.graph = temp;
+        }
+
+        for (Edge edge : pathgraph.getGraph().getEdges()) {
+            if (edge.getSource().getLabel() == edge.getDestination().getLabel()) {
+                edge.getDestination().getEdges().stream()
+                        .filter(e -> this.pCount.containsKey(e.getDestination().getLabel()))
+                        .filter(e -> e.getDestination().getLabel() != edge.getSource().getLabel())
+                        .forEach(e -> this.addEdge(edge.getSource(), e.getDestination()));
+                this.graph.getEdges().remove(edge);
+            }
         }
 
     }
