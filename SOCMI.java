@@ -71,7 +71,9 @@ public class SOCMI {
 
                 while (S.empty() == false) {
                     Graph ext = S.peek();
-                    if (ext.getEdges().get(0).getWeight() == maxDistance) {
+                    List<Edge> extEdges = ext.getEdges().stream().filter(e -> e.getWeight() >= maxDistance)
+                            .collect(Collectors.toList());
+                    if (extEdges.isEmpty() == false) {
                         System.out.println("distance threshold reached");
                         result.add(ext);
                         S.pop();
