@@ -118,6 +118,7 @@ public class SOCMI {
                 System.out.println("Contains edgePg in candidate");
                 // inCandidate.get(0).merge(edgePg);
                 pg_ext.merge(edgePg);
+                continue;
             }
         }
 
