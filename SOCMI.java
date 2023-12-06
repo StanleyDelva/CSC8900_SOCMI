@@ -15,37 +15,74 @@ public class SOCMI {
     public static void main(String args[]) {
 
         // Read citeseer.lg and create graph
-        Graph graph = new Graph();
+        Graph cGraph = new Graph();
         try {
-            graph.readFromFile("data/citeseer.lg");
+            cGraph.readFromFile("data/citeseer.lg");
         } catch (IOException e) {
             System.out.println("Error reading citeseer.lg");
             System.exit(1);
         }
 
-        // Set min support and max distance
-        int minSupport = 50;
-        int maxDistance = 350;
+        // Read Douban dataset and create graph
+        Graph dGraph = new Graph();
+        try {
+            dGraph.readFromFileNoLabels("data/douban.txt");
+        } catch (IOException e) {
+            System.out.println("Error reading douban.txt");
+            System.exit(1);
+        }
 
-        // Run SOCMI algorithm and time it
+        // Set min support and max distance for Citeseer testing
+        int minSupport = 70;
+        int maxDistance = 500;
+
+        // Set min support and max distance for Douban testing
+        int dMinSupport = 1250;
+        int dMaxDistance = 35;
+
+        // RUN SOCMI algorithm and time it
+
+        // CITESEER
         long startTime = System.nanoTime();
-        List<Graph> frequentPatterns = SOCMI_fpm(graph, minSupport, maxDistance);
+        List<Graph> frequentPatterns = SOCMI_fpm(cGraph, minSupport, maxDistance);
         long endTime = System.nanoTime();
         long duration = (endTime - startTime) / 1000000; // time in milliseconds
 
+        // DOUBAN
+        /*
+         * long startTime = System.nanoTime();
+         * List<Graph> frequentPatterns = SOCMI_fpm(dGraph, dMinSupport, dMaxDistance);
+         * long endTime = System.nanoTime();
+         * long duration = (endTime - startTime) / 1000000; // time in milliseconds
+         */
+
         // Print results
+
+        // CITESEER
         for (Graph pattern : frequentPatterns) {
             System.out.println("FREQUENT PATTERN: \n" + pattern.printGraph());
         }
-        System.out.println("Frequent Pathgraphs:  Took " + duration + " milliseconds to find " + frequentPatterns.size()
-                + " frequent pathgraphs with min support " + minSupport + " and max distance " + maxDistance + ".");
+        System.out.println("Frequent Pattterns:  Took " + duration + " milliseconds to find " + frequentPatterns.size()
+                + " frequent patterns with min support " + minSupport + " and max distance " + maxDistance + ".");
+
+        // DOUBAN
+        /*
+         * for (Graph pattern : frequentPatterns) {
+         * System.out.println("FREQUENT PATTERN: \n" + pattern.printGraph());
+         * }
+         * System.out.println("Frequent Pattterns:  Took " + duration +
+         * " milliseconds to find " + frequentPatterns.size()
+         * + " frequent patterns with min support " + dMinSupport + " and max distance "
+         * + dMaxDistance + ".");
+         */
     }
 
-    // Algorithm 1: Frequent Pattern Mining
+    // ALGORITHM 1: Frequent Pattern Mining
     public static List<Graph> SOCMI_fpm(Graph graph, int minSupport, int maxDistance) {
         // Create list of frequent patterns and candidate patterns
         List<Graph> result = new ArrayList<>();
         List<Pathgraph> candidate = new ArrayList<>();
+        ArrayList<Integer> labels = new ArrayList<>();
 
         // find frequent edges of graph
         List<Edge> fEdges = new ArrayList<>();
@@ -71,10 +108,12 @@ public class SOCMI {
 
                 while (!S.empty()) {
 
-                    // Determine if pattern can be extended further or not
                     Graph ext = S.peek();
 
-                    // filter through edges of last node in pattern --- right-most expansion
+                    /*
+                     * Determine if pattern can be extended further or not
+                     * filter through edges of last node in pattern --- right-most expansion
+                     */
                     List<Edge> extEdges = ext.getEdges().get(ext.getEdges().size() - 1).getDestination().getEdges()
                             .stream()
                             .filter(e -> e.getDestination().getLabel() != ext.getEdges().get(0).getSource().getLabel())
@@ -100,7 +139,7 @@ public class SOCMI {
                         continue;
                     }
 
-                    // if pattern can be extended, extend it
+                    // if pattern can be extended, extend it with right-most edge
                     Graph p_ext = new Graph(ext);
                     p_ext.addEdge(extEdges.get(0));
 
@@ -120,7 +159,7 @@ public class SOCMI {
         return result;
     }
 
-    // Algorithm 2
+    // ALGORITHM 2
     private static Pathgraph PathGraphExtension(List<Pathgraph> candidate, Graph p_ext, int minSupport,
             int maxDistance) {
 

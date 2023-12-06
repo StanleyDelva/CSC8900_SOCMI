@@ -83,12 +83,10 @@ public class Graph {
     }
 
     public void readFromFile(String filename) throws IOException {
-        String text = "";
         final BufferedReader rows = new BufferedReader(new FileReader(new File(filename)));
 
         // read graph from rows
         // nodes
-        int counter = 0;
         int numberOfNodes = 0;
         String line;
         String tempLine;
@@ -104,7 +102,6 @@ public class Graph {
             }
 
             numberOfNodes++;
-            counter++;
         }
         nodeCount = numberOfNodes;
         tempLine = line;
@@ -122,13 +119,56 @@ public class Graph {
                 final String[] parts = line.split("\\s+");
                 final int index1 = Integer.parseInt(parts[1]);
                 final int index2 = Integer.parseInt(parts[2]);
-                final double label = Double.parseDouble(parts[3]);
+                final double weight = Double.parseDouble(parts[3]);
 
                 Node node1 = nodes.get(index1);
                 Node node2 = nodes.get(index2);
-                addEdge(node1, node2, label);
+                addEdge(node1, node2, weight);
             } while ((line = rows.readLine()) != null && (line.charAt(0) == 'e'));
         }
+    }
+
+    public void readFromFileNoLabels(String filename) throws IOException {
+        // Create graph from file with no weights or labels;
+        // weights will default to 1.0, labels will be same as node id
+        final BufferedReader rows = new BufferedReader(new FileReader(new File(filename)));
+        int numberOfNodes = 0;
+        String line;
+        rows.readLine();
+
+        // To generate 1K random node IDs and random weights b/w 0 and 30
+        Random rand = new Random();
+
+        while ((line = rows.readLine()) != null) {
+            final String[] parts = line.split("\\s+");
+            final int node1 = Integer.parseInt(parts[0]);
+            final int node2 = Integer.parseInt(parts[1]);
+            int node1Id = rand.nextInt(1000);
+            int node2Id = rand.nextInt(1000);
+
+            // Random Gaussian distribution between 0 and 30
+            double weight = (rand.nextGaussian() * 5) + 15;
+            if (weight < 0) {
+                weight = 0;
+            } else if (weight > 30) {
+                weight = 30;
+            }
+
+            addNode(node1, node1Id);
+            addNode(node2, node2Id);
+
+            // System.out.println("READING NODE IDs: \n" + "node1: " + node1 + " node2: " +
+            // node2);
+            // System.out.println("Node 1: " + nodes.get(node1).getId() + " Node 2: " +
+            // nodes.get(node2).getId());
+
+            numberOfNodes += 2;
+
+            addEdge(nodes.get(node1), nodes.get(node2), weight);
+
+        }
+
+        nodeCount = numberOfNodes;
     }
 
     public HashMap<Integer, ArrayList<Integer>> getAdjList() {

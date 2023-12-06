@@ -122,10 +122,16 @@ public class Pathgraph {
         if (!this.path.equals(pathgraph.getPath())) {
 
             for (Edge edge : pathgraph.getGraph().getEdges()) {
-                // Find the nodes that are different between the two pathgraphs but have same
-                // label
+
+                /*
+                 * Find the nodes that are different between the two pathgraphs but have same
+                 * label (find new nodes in common domain as nodes from current pathgraph)
+                 */
                 if (this.graph.getNodes().contains(edge.getSource())
                         || this.graph.getNodes().contains(edge.getDestination())) {
+
+                    // If current edge's source node is already in pathgraph as a
+                    // destination node, get total weight of path so far
                     if (this.graph.getNodes().contains(edge.getSource())) {
                         List<Edge> sourceIsBetween = this.graph.getEdges().stream()
                                 .filter(e -> e.getDestination().getId() == edge.getSource().getId())
@@ -140,6 +146,8 @@ public class Pathgraph {
 
                     }
 
+                    // If current edge's destination node is already in pathgraph as a
+                    // destination node, get total weight of path so far
                     else if (this.graph.getNodes().contains(edge.getDestination())) {
                         List<Edge> DestIsDest = this.graph.getEdges().stream()
                                 .filter(e -> e.getDestination().getId() == edge.getDestination().getId())
@@ -188,44 +196,46 @@ public class Pathgraph {
 
     }
 
-    public void merge(Pathgraph pg) {
-        if (pg.getPath().equals(this.path)) {
-            this.graph.getEdges().addAll(pg.getGraph().getEdges());
-
-            for (Integer key : pg.pCount.keySet()) {
-                this.pCount.put(key, this.pCount.get(key) + pg.pCount.get(key));
-            }
-
-            Graph temp = new Graph(this.graph);
-            this.graph = temp;
-
-            return;
-        }
-
-        for (int label : pg.path) {
-            if (!this.path.contains(label)) {
-                this.path.add(label);
-            }
-        }
-
-        for (Integer key : pg.pCount.keySet()) {
-            this.pCount.put(key, this.pCount.getOrDefault(key, 0) + pg.pCount.get(key));
-        }
-        for (Node n : pg.getGraph().getNodes()) {
-            if (!this.graph.getNodes().contains(n)) {
-                this.reachableNodes.put(n.getId(), pg.reachableNodes.get(n.getId()));
-            } else {
-                this.reachableNodes.get(n.getId()).putAll(pg.reachableNodes.get(n.getId()));
-            }
-        }
-
-        for (Edge e : this.getGraph().getEdges()) {
-            if (this.reachableNodes.get(e.getDestination().getId()) != null) {
-
-            }
-        }
-
-    }
+    /*
+     * public void merge(Pathgraph pg) {
+     * if (pg.getPath().equals(this.path)) {
+     * this.graph.getEdges().addAll(pg.getGraph().getEdges());
+     * 
+     * for (Integer key : pg.pCount.keySet()) {
+     * this.pCount.put(key, this.pCount.get(key) + pg.pCount.get(key));
+     * }
+     * 
+     * Graph temp = new Graph(this.graph);
+     * this.graph = temp;
+     * 
+     * return;
+     * }
+     * 
+     * for (int label : pg.path) {
+     * if (!this.path.contains(label)) {
+     * this.path.add(label);
+     * }
+     * }
+     * 
+     * for (Integer key : pg.pCount.keySet()) {
+     * this.pCount.put(key, this.pCount.getOrDefault(key, 0) + pg.pCount.get(key));
+     * }
+     * for (Node n : pg.getGraph().getNodes()) {
+     * if (!this.graph.getNodes().contains(n)) {
+     * this.reachableNodes.put(n.getId(), pg.reachableNodes.get(n.getId()));
+     * } else {
+     * this.reachableNodes.get(n.getId()).putAll(pg.reachableNodes.get(n.getId()));
+     * }
+     * }
+     * 
+     * for (Edge e : this.getGraph().getEdges()) {
+     * if (this.reachableNodes.get(e.getDestination().getId()) != null) {
+     * 
+     * }
+     * }
+     * 
+     * }
+     */
 
     public boolean contains(Pathgraph pathgraph) {
         for (Edge edge : pathgraph.getGraph().getEdges()) {
