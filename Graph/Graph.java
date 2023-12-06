@@ -65,7 +65,9 @@ public class Graph {
     }
 
     public void addEdge(Edge edge) {
-        edges.add(edge);
+        if (!edges.contains(edge)) {
+            edges.add(edge);
+        }
     }
 
     public void removeEdge(Edge edge) {
@@ -161,11 +163,13 @@ public class Graph {
 
     public String printGraph() {
         String text = "";
-        for (Node node : nodes.values()) {
-            text += node.getId() + " " + node.getLabel() + "\n";
-        }
+        // for (Node node : nodes.values()) {
+        // text += node.getId() + " " + node.getLabel() + "\n";
+        // }
         for (Edge edge : edges) {
-            text += edge.getSource().getId() + " " + edge.getDestination().getId() + " " + edge.getWeight() + "\n";
+            text += edge.getSource().getId() + " (" + edge.getSource().getLabel() + ") "
+                    + edge.getDestination().getId() + " (" + edge.getDestination().getLabel() + ") "
+                    + " Wt: " + edge.getWeight() + "\n";
         }
         return text;
     }

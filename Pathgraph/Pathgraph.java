@@ -7,10 +7,10 @@ import Graph.*;
 public class Pathgraph {
     // Implementation of Pathgraph, as interpreted from paper
     private Graph graph;
-    // count of each node label in the pathgraph
-    private HashMap<Integer, Integer> pCount;
-    private ArrayList<Integer> path;
-    private HashMap<Integer, HashMap<Integer, Double>> reachableNodes;
+    private HashMap<Integer, Integer> pCount; // count of each node label in the pathgraph
+    private ArrayList<Integer> path; // list of node labels in the pathgraph, to get idea of pattern
+    private HashMap<Integer, HashMap<Integer, Double>> reachableNodes; // key is node id, value is map of reachable
+                                                                       // nodes and their distance
 
     public Pathgraph(Graph graph) {
         this.graph = graph;
